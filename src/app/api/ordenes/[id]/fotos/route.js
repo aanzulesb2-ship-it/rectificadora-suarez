@@ -12,21 +12,8 @@ function pickCategoria(it, fallback) {
   return (c ? String(c) : fallback) || null;
 }
 
-function getOrdenIdFromUrl(reqUrl) {
-  try {
-    const u = new URL(reqUrl);
-    const parts = u.pathname.split("/").filter(Boolean);
-    const fotosIdx = parts.lastIndexOf("fotos");
-    if (fotosIdx > 0) return parts[fotosIdx - 1] || null;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 async function signMany(sb, items, expiresIn = 60 * 60) {
   const out = [];
-
   for (const it of items) {
     const bucket = it?.bucket;
     const path = it?.path;
@@ -42,22 +29,17 @@ async function signMany(sb, items, expiresIn = 60 * 60) {
       out.push({ bucket, path, categoria, url: null, error: error?.message || "No se pudo firmar URL" });
     }
   }
-
   return out.filter((x) => !!x.url);
 }
 
 export async function GET(req, ctx) {
   try {
-    //  Next 16: ctx.params puede venir como Promise
     let ordenId = null;
 
     if (ctx?.params) {
-      const p = await ctx.params;
+      const p = await ctx.params; // Next 16: params puede ser Promise
       if (p?.id) ordenId = String(p.id);
     }
-
-    // fallback por URL si params no vino
-    if (!ordenId) ordenId = getOrdenIdFromUrl(req.url);
 
     if (!ordenId) {
       return Response.json({ error: "Falta id" }, { status: 400, headers: { "Cache-Control": "no-store" } });
@@ -67,60 +49,48 @@ export async function GET(req, ctx) {
 
     const debug = {
       ordenId,
-      triedOrdenFotos: false,
-      ordenFotosError: null,
-      usedFallbackOrdenes: false,
+      usedOrdenes: true,
       totalFound: 0,
       totalSigned: 0,
+      note: "Solo lee ordenes.fotos_block / fotos_cabezote. No usa orden_fotos.",
     };
 
-    let fotos = [];
+    // OJO: NO usamos .single() para evitar 'Cannot coerce...'
+    const { data: rows, error: ordErr } = await sb
+      .from("ordenes")
+      .select("id,fotos_block,fotos_cabezote")
+      .eq("id", ordenId)
+      .limit(1);
 
-    // 1) Intentar tabla orden_fotos (si existe)
-    debug.triedOrdenFotos = true;
-    const { data: ofData, error: ofErr } = await sb
-      .from("orden_fotos")
-      .select("bucket,path,categoria,created_at")
-      .eq("orden_id", ordenId)
-      .order("created_at", { ascending: true });
-
-    if (ofErr) {
-      debug.ordenFotosError = ofErr.message || String(ofErr);
-    } else if (Array.isArray(ofData) && ofData.length) {
-      fotos = ofData;
+    if (ordErr) {
+      return Response.json(
+        { error: "No se pudo leer la orden", detail: ordErr.message, debug },
+        { status: 500, headers: { "Cache-Control": "no-store" } }
+      );
     }
 
-    // 2) Fallback: JSON en ordenes
-    if (!fotos.length) {
-      debug.usedFallbackOrdenes = true;
+    const orden = rows?.[0] || null;
 
-      const { data: orden, error: ordErr } = await sb
-        .from("ordenes")
-        .select("fotos_block,fotos_cabezote")
-        .eq("id", ordenId)
-        .single();
-
-      if (ordErr) {
-        return Response.json(
-          { error: "No se pudo leer la orden", detail: ordErr.message, debug },
-          { status: 500, headers: { "Cache-Control": "no-store" } }
-        );
-      }
-
-      const block = normalizeArray(orden?.fotos_block).map((x) => ({
-        bucket: x?.bucket || "ordenes-fotos-block",
-        path: x?.path,
-        categoria: pickCategoria(x, "block"),
-      }));
-
-      const cabezote = normalizeArray(orden?.fotos_cabezote).map((x) => ({
-        bucket: x?.bucket || "ordenes-fotos-cabezote",
-        path: x?.path,
-        categoria: pickCategoria(x, "cabezote"),
-      }));
-
-      fotos = [...block, ...cabezote].filter((x) => x.bucket && x.path);
+    if (!orden) {
+      return Response.json(
+        { error: "Orden no encontrada (0 filas)", debug: { ...debug, rowsFound: rows?.length || 0 } },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
     }
+
+    const block = normalizeArray(orden?.fotos_block).map((x) => ({
+      bucket: x?.bucket || "ordenes-fotos-block",
+      path: x?.path,
+      categoria: pickCategoria(x, "block"),
+    }));
+
+    const cabezote = normalizeArray(orden?.fotos_cabezote).map((x) => ({
+      bucket: x?.bucket || "ordenes-fotos-cabezote",
+      path: x?.path,
+      categoria: pickCategoria(x, "cabezote"),
+    }));
+
+    const fotos = [...block, ...cabezote].filter((x) => x.bucket && x.path);
 
     debug.totalFound = fotos.length;
 
