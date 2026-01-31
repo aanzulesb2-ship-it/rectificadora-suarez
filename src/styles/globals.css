@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+:root {
+  --primary-red: #dc2626;
+  --primary-dark: #991b1b;
+  --stone-light: #f5f5f4;
+  --stone-dark: #78716c;
+  --success-green: #16a34a;
+  --warning-yellow: #f59e0b;
+}
+
+@layer base {
+  body {
+    background-color: #fafaf9;
+    color: #111827;
+  }
+}
+
+@layer components {
+  .card-suarez {
+    background-color: white;
+    border-radius: 1rem;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+    border: 1px solid #f5f5f4;
+    padding: 2rem;
+  }
+  .btn-suarez {
+    background-color: #dc2626;
+    color: white;
+    font-weight: 700;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    transition: all 0.2s;
+  }
+  .btn-suarez:hover {
+    background-color: #b91c1c;
+  }
+}

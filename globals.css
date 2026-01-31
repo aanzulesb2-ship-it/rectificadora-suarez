@@ -1,0 +1,45 @@
+﻿
+
+:root {
+  --suarez-red: #FF2800;
+}
+
+body {
+  background-color: #f5f5f4;
+  color: #1c1917;
+  margin: 0;
+  font-family: sans-serif;
+}
+
+/* Marca de agua suave */
+.bg-suarez {
+  background-color: rgba(255,255,255,0.9);
+}
+
+.input-suarez {
+  width: 100%;
+  padding: 0.75rem;
+  background: #fff;
+  border: 1px solid #e7e5e4;
+  border-radius: 0.75rem;
+  outline: none;
+  transition: all 0.2s;
+}
+.input-suarez:focus {
+  border-color: #dc2626;
+}
+.btn-suarez {
+  background-color: #dc2626;
+  color: #fff;
+  font-weight: bold;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 8px 0 rgba(220,38,38,0.08);
+  transition: all 0.2s;
+}
+.btn-suarez:hover {
+  background-color: #b91c1c;
+}
+.btn-suarez:active {
+  transform: scale(0.95);
+}
